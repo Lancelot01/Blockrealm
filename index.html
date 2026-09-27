@@ -726,7 +726,7 @@ function initBlocks() {
   P('cobblestone', '圓石', 'cobble', { hard: 2, tool: 'pick', tier: 1 });
   P('bedrock', '基岩', 'bedrock', { hard: -1 });
   P('sand', '沙', 'sand', { hard: 0.5, tool: 'shovel', grav: 1 });
-  P('gravel', '礫石', 'gravel', { hard: 0.6, tool: 'shovel', grav: 1, drop: (m, r, f) => r() < 0.1 + f * 0.15 ? [['flint', 1]] : [['gravel', 1]] });
+  P('gravel', '礫石', 'gravel', { hard: 0.6, tool: 'shovel', grav: 1, drop: (m, r, f) => r() < 1 / Math.max(1, 10 - Math.min(3, f) * 3) ? [['flint', 1]] : [['gravel', 1]] });
   P('clay', '黏土', 'clay', { hard: 0.6, tool: 'shovel', drop: [['clay_ball', 4]] });
   P('sandstone', '砂岩', { t: 'sandstoneTop', b: 'sandstoneBottom', s: 'sandstoneSide' }, { hard: 0.8, tool: 'pick', tier: 1 });
   P('snow_block', '雪塊', 'snow', { hard: 0.2, tool: 'shovel', drop: [['snowball', 4]] });
@@ -757,15 +757,18 @@ function initBlocks() {
   P('farmland', '耕地', { t: 'farmDry', b: 'dirt', s: 'dirt' }, { rt: RT_SHAPE, hard: 0.6, tool: 'shovel', drop: 'dirt', opq: 15, solid: 2, shape: () => [[0, 0, 0, 1, 15 * S16, 1]], tf: (f, m) => f === 2 ? (m ? TX.farmWet : TX.farmDry) : TX.dirt });
   P('dirt_path', '土徑', { t: 'pathTop', b: 'dirt', s: 'dirt' }, { rt: RT_SHAPE, hard: 0.65, tool: 'shovel', drop: 'dirt', solid: 2, shape: () => [[0, 0, 0, 1, 15 * S16, 1]] });
   // ores (meta 1 = deep variant)
+  // Vanilla-style Fortune multiplier: F1 = 2/3×1 + 1/3×2; F2 = 1/2×1 + 1/4×2 + 1/4×3; F3 = 2/5×1 + 1/5×2/3/4.
+  const fortuneOreMul = (r, f) => f > 0 ? Math.max(1, r.int(f + 2)) : 1;
   const ore = (k, n, t, tier, drop, xp) => P(k, n, t, { hard: 3, tool: 'pick', tier, drop, xp, tf: (f, m) => m ? TX[t + 'D'] : TX[t], ore: 1 });
-  ore('coal_ore', '煤礦', 'coalOre', 1, [['coal', 1]], [0, 2]);
-  ore('copper_ore', '銅礦', 'copperOre', 2, (m, r, f) => [['raw_copper', 2 + r.int(3) + (f ? r.int(f + 1) : 0)]], null);
-  ore('iron_ore', '鐵礦', 'ironOre', 3, (m, r, f) => [['raw_iron', 1 + (f ? r.int(f + 1) : 0)]], null);
-  ore('gold_ore', '金礦', 'goldOre', 4, (m, r, f) => [['raw_gold', 1 + (f ? r.int(f + 1) : 0)]], null);
-  ore('redstone_ore', '赤能礦', 'redOre', 4, (m, r, f) => [['redstone', 4 + r.int(2) + f]], [1, 5]);
-  ore('lapis_ore', '蒼靈礦', 'lapisOre', 2, (m, r, f) => [['lapis', 4 + r.int(5) + f * 2]], [2, 5]);
-  ore('diamond_ore', '青晶礦', 'diaOre', 4, (m, r, f) => [['diamond', 1 + (f ? r.int(f + 1) : 0)]], [3, 7]);
-  ore('emerald_ore', '翠晶礦', 'emeOre', 4, (m, r, f) => [['emerald', 1 + (f ? r.int(f + 1) : 0)]], [3, 7]);
+  ore('coal_ore', '煤礦', 'coalOre', 1, (m, r, f) => [['coal', fortuneOreMul(r, f)]], [0, 2]);
+  ore('copper_ore', '銅礦', 'copperOre', 2, (m, r, f) => [['raw_copper', (2 + r.int(4)) * fortuneOreMul(r, f)]], null);
+  // Stone and copper pickaxes share the same harvest level in vanilla; iron ore is NOT copper-gated.
+  ore('iron_ore', '鐵礦', 'ironOre', 2, (m, r, f) => [['raw_iron', fortuneOreMul(r, f)]], null);
+  ore('gold_ore', '金礦', 'goldOre', 4, (m, r, f) => [['raw_gold', fortuneOreMul(r, f)]], null);
+  ore('redstone_ore', '赤能礦', 'redOre', 4, (m, r, f) => [['redstone', 4 + r.int(2 + f)]], [1, 5]);
+  ore('lapis_ore', '蒼靈礦', 'lapisOre', 2, (m, r, f) => [['lapis', (4 + r.int(6)) * fortuneOreMul(r, f)]], [2, 5]);
+  ore('diamond_ore', '青晶礦', 'diaOre', 4, (m, r, f) => [['diamond', fortuneOreMul(r, f)]], [3, 7]);
+  ore('emerald_ore', '翠晶礦', 'emeOre', 4, (m, r, f) => [['emerald', fortuneOreMul(r, f)]], [3, 7]);
   // wood
   const WN = { oak: '橡木', birch: '樺木', spruce: '雲杉', jungle: '叢林木', dark: '深色橡木', crimson: '緋紅菌', warped: '幽藍菌' };
   for (const w in WN) {
@@ -829,7 +832,7 @@ function initBlocks() {
   const WOOLN = { white: '白', gray: '灰', black: '黑', brown: '棕', red: '紅', yellow: '黃', blue: '藍', green: '綠', orange: '橙', pink: '粉紅', purple: '紫', cyan: '青' };
   for (const k in WOOLN) P('wool_' + k, WOOLN[k] + '色羊毛', 'wool_' + k, { hard: 0.8, tool: 'shears', flam: 60, wool: 1 });
   P('bookshelf', '書架', { t: 'planks_oak', b: 'planks_oak', s: 'bookshelf' }, { hard: 1.5, tool: 'axe', flam: 30, drop: [['book', 3]] });
-  P('iron_block', '鐵塊', 'ironBlock', { hard: 5, tool: 'pick', tier: 3 });
+  P('iron_block', '鐵塊', 'ironBlock', { hard: 5, tool: 'pick', tier: 2 });
   P('gold_block', '金塊', 'goldBlock', { hard: 3, tool: 'pick', tier: 4 });
   P('diamond_block', '青晶塊', 'diaBlock', { hard: 5, tool: 'pick', tier: 4 });
   P('emerald_block', '翠晶塊', 'emeBlock', { hard: 5, tool: 'pick', tier: 4 });
@@ -938,8 +941,8 @@ function initBlocks() {
   P('magma_block', '岩漿塊', 'magma', { hard: 0.5, tool: 'pick', tier: 1, light: 3, hurtTop: 1 });
   P('glowstone', '熒光石', 'glowstone', { hard: 0.3, light: 15, drop: (m, r, f) => [['glowstone_dust', Math.min(4, 2 + r.int(3) + f)]] });
   P('nether_bricks', '燼磚', 'netherBricks', { hard: 2, tool: 'pick', tier: 1 });
-  P('nether_gold_ore', '燼金礦', 'netherGoldOre', { hard: 3, tool: 'pick', tier: 1, ore: 1, drop: (m, r, f) => [['gold_nugget', 2 + r.int(5) + f]], xp: [0, 1] });
-  P('quartz_ore', '燼晶石英礦', 'quartzOre', { hard: 3, tool: 'pick', tier: 1, ore: 1, drop: (m, r, f) => [['quartz', 1 + (f ? r.int(f + 1) : 0)]], xp: [2, 5] });
+  P('nether_gold_ore', '燼金礦', 'netherGoldOre', { hard: 3, tool: 'pick', tier: 1, ore: 1, drop: (m, r, f) => [['gold_nugget', (2 + r.int(5)) * fortuneOreMul(r, f)]], xp: [0, 1] });
+  P('quartz_ore', '燼晶石英礦', 'quartzOre', { hard: 3, tool: 'pick', tier: 1, ore: 1, drop: (m, r, f) => [['quartz', fortuneOreMul(r, f)]], xp: [2, 5] });
   P('ancient_debris', '遠古殘骸', { t: 'debrisTop', b: 'debrisTop', s: 'debrisSide' }, { hard: 30, tool: 'pick', tier: 5, resist: 1200 });
   P('crimson_nylium', '緋紅菌岩', { t: 'crimsonNyl', b: 'netherrack', s: 'crimsonNylSide' }, { hard: 0.4, tool: 'pick', tier: 1, drop: 'netherrack' });
   P('warped_nylium', '幽藍菌岩', { t: 'warpedNyl', b: 'netherrack', s: 'warpedNylSide' }, { hard: 0.4, tool: 'pick', tier: 1, drop: 'netherrack' });
@@ -1026,14 +1029,14 @@ function I(key, name, o = {}) { const id = _iid++; const it = Object.assign({ id
 const TIERS = {
   wood: { n: '木', tier: 1, speed: 2, dur: 60, ench: 15, mat: '#planks' },
   stone: { n: '石', tier: 2, speed: 4, dur: 132, ench: 5, mat: '#stone_craft' },
-  copper: { n: '銅', tier: 3, speed: 5, dur: 190, ench: 10, mat: 'copper_ingot' },
+  copper: { n: '銅', tier: 3, speed: 5, dur: 190, ench: 13, mat: 'copper_ingot' },
   iron: { n: '鐵', tier: 4, speed: 6, dur: 251, ench: 14, mat: 'iron_ingot' },
   diamond: { n: '青晶', tier: 5, speed: 8, dur: 1562, ench: 10, mat: 'diamond' },
   ancient: { n: '遠古合金', tier: 6, speed: 9, dur: 2032, ench: 15, mat: 'ancient_ingot' }
 };
 const ARMORS = {
   leather: { n: '皮革', def: [1, 3, 2, 1], mul: 5, tough: 0, ench: 15, mat: 'leather' },
-  copper: { n: '銅', def: [2, 4, 3, 1], mul: 11, tough: 0, ench: 10, mat: 'copper_ingot' },
+  copper: { n: '銅', def: [2, 4, 3, 1], mul: 11, tough: 0, ench: 8, mat: 'copper_ingot' },
   gold: { n: '黃金', def: [2, 5, 3, 1], mul: 7, tough: 0, ench: 25, mat: 'gold_ingot' },
   iron: { n: '鐵', def: [2, 6, 5, 2], mul: 15, tough: 0, ench: 9, mat: 'iron_ingot' },
   diamond: { n: '青晶', def: [3, 8, 6, 3], mul: 33, tough: 2, ench: 10, mat: 'diamond' },
@@ -1047,11 +1050,17 @@ function initItems() {
   // tools
   for (const t in TIERS) {
     const T = TIERS[t];
-    const sw = { wood: 4, stone: 5, copper: 5.5, iron: 6, diamond: 7, ancient: 8 }[t], ax = { wood: 7, stone: 9, copper: 8.5, iron: 9, diamond: 9, ancient: 10 }[t], axs = { wood: 0.8, stone: 0.8, copper: 0.85, iron: 0.9, diamond: 1, ancient: 1 }[t];
-    I(t + '_pickaxe', T.n + '鎬', { stack: 1, tool: 'pick', tier: T.tier, speed: T.speed, dur: T.dur, dmg: T.tier * 0.7 + 1.5, aspd: 1.2, mat: T.mat, ench: T.ench, tk: t });
+    // Java-style combat stats. Copper tools intentionally match stone damage/attack speed while keeping speed 5 and higher durability.
+    const sw = { wood: 4, stone: 5, copper: 5, iron: 6, diamond: 7, ancient: 8 }[t],
+      ax = { wood: 7, stone: 9, copper: 9, iron: 9, diamond: 9, ancient: 10 }[t],
+      axs = { wood: 0.8, stone: 0.8, copper: 0.8, iron: 0.9, diamond: 1, ancient: 1 }[t],
+      pickDmg = { wood: 2, stone: 3, copper: 3, iron: 4, diamond: 5, ancient: 6 }[t],
+      shovelDmg = { wood: 2.5, stone: 3.5, copper: 3.5, iron: 4.5, diamond: 5.5, ancient: 6.5 }[t],
+      hoeSpd = { wood: 1, stone: 2, copper: 2, iron: 3, diamond: 4, ancient: 4 }[t];
+    I(t + '_pickaxe', T.n + '鎬', { stack: 1, tool: 'pick', tier: T.tier, speed: T.speed, dur: T.dur, dmg: pickDmg, aspd: 1.2, mat: T.mat, ench: T.ench, tk: t });
     I(t + '_axe', T.n + '斧', { stack: 1, tool: 'axe', tier: T.tier, speed: T.speed, dur: T.dur, dmg: ax, aspd: axs, mat: T.mat, ench: T.ench, tk: t, weapon: 1 });
-    I(t + '_shovel', T.n + '鏟', { stack: 1, tool: 'shovel', tier: T.tier, speed: T.speed, dur: T.dur, dmg: T.tier * 0.7 + 1.8, aspd: 1, mat: T.mat, ench: T.ench, tk: t });
-    I(t + '_hoe', T.n + '鋤', { stack: 1, tool: 'hoe', tier: T.tier, speed: T.speed, dur: T.dur, dmg: 1, aspd: T.tier, mat: T.mat, ench: T.ench, tk: t });
+    I(t + '_shovel', T.n + '鏟', { stack: 1, tool: 'shovel', tier: T.tier, speed: T.speed, dur: T.dur, dmg: shovelDmg, aspd: 1, mat: T.mat, ench: T.ench, tk: t });
+    I(t + '_hoe', T.n + '鋤', { stack: 1, tool: 'hoe', tier: T.tier, speed: T.speed, dur: T.dur, dmg: 1, aspd: hoeSpd, mat: T.mat, ench: T.ench, tk: t });
     I(t + '_sword', T.n + '劍', { stack: 1, tool: 'sword', tier: T.tier, speed: 1.5, dur: T.dur, dmg: sw, aspd: 1.6, mat: T.mat, ench: T.ench, tk: t, weapon: 1 });
     if (T.tier >= 3) I(t + '_spear', T.n + '長矛', { stack: 1, tool: 'spear', tier: T.tier, speed: 1, dur: T.dur, dmg: sw + 0.5, aspd: 1.1, reach: 4.8, mat: T.mat, ench: T.ench, tk: t, weapon: 1, use: 'spear' });
   }
@@ -1119,6 +1128,8 @@ function initItems() {
   for (const k of ['crafting_table', 'chest', 'ladder', 'bookshelf', 'fence', 'fence_gate', 'barrel', 'composter', 'trapdoor', 'door_wood', 'slab_oak', 'stairs_oak', 'boat']) FUEL[k] = k === 'slab_oak' ? 7.5 : k === 'boat' ? 60 : 15;
   for (const t of ['pickaxe', 'axe', 'shovel', 'hoe', 'sword']) FUEL['wood_' + t] = 10;
   for (const k in BK) if (k.startsWith('wool_') || k.startsWith('sapling_')) FUEL[k] = 5;
+  // Appended for save compatibility: do not insert this earlier or existing numeric item IDs would shift.
+  M('copper_nugget', '銅粒');
 }
 const FUEL = {};
 const MOBNAME = { zombie: '腐行者', husk: '沙漠乾屍', skeleton: '骸骨弓手', stray: '冰霜骸骨', spider: '洞穴蛛', creeper: '爆裂菇', witch: '沼澤術士', cow: '牛', pig: '豬', sheep: '羊', chicken: '雞', rabbit: '兔子', villager: '村民', horse: '草原馬', wolf: '狼', goat: '山羊', blaze: '炎靈', enderman: '虛影行者', phantom_walker: '虛影行者', ghast: '燼魂', piglin: '燼族商人', hoglin: '熔岩獸', magma_cube: '熔漿史萊姆', wither_skeleton: '亡靈戰士', golem: '石像守衛', guardian: '海晶守衛', shulker: '殼衛', warden: '深淵巨像', dragon: '虛空巨龍・涅墟', deep_zombie: '深層腐行者' };
@@ -1354,10 +1365,14 @@ function initRecipes() {
   R('cartography_table', 1, ['pp', 'PP', 'PP'], { p: 'paper', P: '#planks' });
   R('shulker_box', 1, ['S', 'C', 'S'], { S: 'shulker_shell', C: 'chest' });
   RSL('firework', 3, ['paper', 'gunpowder']);
-  R('saddle', 1, ['LLL', 'L L', ' I '], { L: 'leather', I: 'iron_ingot' });
-  RSL('lead', 2, ['string', 'string', 'string', 'string']);
+  // Vanilla (1.21.6+): 3 leather + 1 iron ingot
+  R('saddle', 1, [' L ', 'LIL'], { L: 'leather', I: 'iron_ingot' });
+  // Vanilla (1.21.6+): 5 string, yields 2 leads
+  R('lead', 2, ['SS ', 'SS ', '  S'], { S: 'string' });
   R('slime_block', 1, ['HHH', 'HHH', 'HHH'], { H: 'honey_bottle' }, { remain: 'glass_bottle' });
   RSL('flint', 1, ['gravel', 'gravel', 'gravel']);
+  R('copper_ingot', 1, ['NNN', 'NNN', 'NNN'], { N: 'copper_nugget' });
+  RSL('copper_nugget', 9, ['copper_ingot']);
   // resolve
   for (const r of RECIPES) { r.oid = itemId(r.out); }
 }
@@ -1417,20 +1432,28 @@ function initSmelt() {
   S('beef', 'cooked_beef', 0.35); S('porkchop', 'cooked_porkchop', 0.35); S('chicken', 'cooked_chicken', 0.35); S('mutton', 'cooked_mutton', 0.35);
   S('rabbit', 'cooked_rabbit', 0.35); S('cod', 'cooked_cod', 0.35); S('salmon', 'cooked_salmon', 0.35); S('potato', 'baked_potato', 0.35);
   S('sandstone', 'smooth_stone', 0.1);
-  for (const t of ['pickaxe', 'axe', 'shovel', 'hoe', 'sword', 'spear']) { S('iron_' + t, 'iron_nugget', 0.1); }
-  for (const k of SLOTK) { S('iron_' + k, 'iron_nugget', 0.1); S('gold_' + k, 'gold_nugget', 0.1); }
+  for (const t of ['pickaxe', 'axe', 'shovel', 'hoe', 'sword', 'spear']) { S('iron_' + t, 'iron_nugget', 0.1); S('copper_' + t, 'copper_nugget', 0.1); }
+  for (const k of SLOTK) { S('iron_' + k, 'iron_nugget', 0.1); S('gold_' + k, 'gold_nugget', 0.1); S('copper_' + k, 'copper_nugget', 0.1); }
 }
 function smeltOf(id) { const k = IT[id] && IT[id].key; return k && SMELT[k] ? SMELT[k] : null; }
+// Blast furnaces accept ores, raw metals and smeltable metal equipment only.
+function blastSmeltOf(id) {
+  const d = IT[id], k = d && d.key;
+  if (!k || !SMELT[k]) return null;
+  if (k.endsWith('_ore') || k === 'ancient_debris' || k === 'raw_iron' || k === 'raw_copper' || k === 'raw_gold') return SMELT[k];
+  if (/^(?:iron|gold|copper)_(?:pickaxe|axe|shovel|hoe|sword|spear|helmet|chestplate|leggings|boots)$/.test(k)) return SMELT[k];
+  return null;
+}
 function fuelOf(id) { const k = IT[id] && IT[id].key; return k && FUEL[k] || 0; }
 
 // ===================== LOOT =====================
 const LOOT = {
-  dungeon: [[3, 7], ['bread', 1, 3, 15], ['wheat', 1, 4, 10], ['iron_ingot', 1, 4, 10], ['gold_ingot', 1, 4, 5], ['redstone', 1, 4, 10], ['coal', 3, 8, 10], ['string', 1, 4, 10], ['gunpowder', 1, 4, 10], ['bucket', 1, 1, 8], ['saddle', 1, 1, 6], ['name_tag', 1, 1, 4], ['golden_apple', 1, 1, 3], ['enchanted_book', 1, 1, 8, 'book'], ['rotten_flesh', 1, 4, 10], ['bone', 1, 4, 10], ['melon_seeds', 2, 4, 5], ['pumpkin_seeds', 2, 4, 5], ['beetroot_seeds', 2, 4, 5], ['diamond', 1, 1, 2]],
+  dungeon: [[3, 7], ['bread', 1, 3, 15], ['wheat', 1, 4, 10], ['iron_ingot', 1, 4, 10], ['gold_ingot', 1, 4, 5], ['redstone', 1, 4, 10], ['coal', 3, 8, 10], ['string', 1, 4, 10], ['gunpowder', 1, 4, 10], ['bucket', 1, 1, 8], ['leather', 1, 5, 6], ['name_tag', 1, 1, 4], ['golden_apple', 1, 1, 3], ['enchanted_book', 1, 1, 8, 'book'], ['rotten_flesh', 1, 4, 10], ['bone', 1, 4, 10], ['melon_seeds', 2, 4, 5], ['pumpkin_seeds', 2, 4, 5], ['beetroot_seeds', 2, 4, 5], ['diamond', 1, 1, 2]],
   mineshaft: [[4, 8], ['bread', 1, 3, 15], ['iron_ingot', 1, 5, 10], ['gold_ingot', 1, 3, 5], ['redstone', 4, 9, 5], ['lapis', 4, 9, 5], ['diamond', 1, 2, 3], ['coal', 3, 8, 10], ['rail', 4, 8, 12], ['powered_rail', 1, 4, 5], ['torch', 1, 16, 15], ['melon_seeds', 2, 4, 10], ['pumpkin_seeds', 2, 4, 10], ['iron_pickaxe', 1, 1, 3], ['enchanted_book', 1, 1, 6, 'book'], ['name_tag', 1, 1, 4], ['golden_apple', 1, 1, 2]],
-  desert_temple: [[3, 7], ['diamond', 1, 3, 5], ['iron_ingot', 1, 5, 15], ['gold_ingot', 2, 7, 15], ['emerald', 1, 3, 15], ['bone', 4, 6, 25], ['spider_eye', 1, 3, 25], ['rotten_flesh', 3, 7, 25], ['saddle', 1, 1, 20], ['golden_apple', 1, 1, 10], ['enchanted_book', 1, 1, 20, 'book'], ['gunpowder', 1, 4, 10], ['sand', 1, 8, 10]],
-  jungle_temple: [[3, 6], ['diamond', 1, 3, 3], ['iron_ingot', 1, 5, 10], ['gold_ingot', 2, 7, 15], ['emerald', 1, 3, 2], ['bone', 4, 6, 20], ['rotten_flesh', 3, 7, 16], ['saddle', 1, 1, 3], ['enchanted_book', 1, 1, 5, 'book'], ['bamboo', 1, 3, 0]],
+  desert_temple: [[3, 7], ['diamond', 1, 3, 5], ['iron_ingot', 1, 5, 15], ['gold_ingot', 2, 7, 15], ['emerald', 1, 3, 15], ['bone', 4, 6, 25], ['spider_eye', 1, 3, 25], ['rotten_flesh', 3, 7, 25], ['leather', 1, 5, 20], ['golden_apple', 1, 1, 10], ['enchanted_book', 1, 1, 20, 'book'], ['gunpowder', 1, 4, 10], ['sand', 1, 8, 10]],
+  jungle_temple: [[3, 6], ['diamond', 1, 3, 3], ['iron_ingot', 1, 5, 10], ['gold_ingot', 2, 7, 15], ['emerald', 1, 3, 2], ['bone', 4, 6, 20], ['rotten_flesh', 3, 7, 16], ['leather', 1, 5, 3], ['enchanted_book', 1, 1, 5, 'book'], ['bamboo', 1, 3, 0]],
   stronghold_library: [[3, 8], ['book', 1, 3, 20], ['paper', 2, 7, 20], ['empty_map', 1, 1, 5], ['compass', 1, 1, 5], ['enchanted_book', 1, 1, 30, 'book30']],
-  stronghold_corridor: [[2, 4], ['ender_pearl', 1, 2, 12], ['diamond', 1, 3, 3], ['iron_ingot', 1, 5, 10], ['gold_ingot', 1, 3, 5], ['redstone', 4, 9, 5], ['bread', 1, 3, 15], ['apple', 1, 3, 15], ['iron_pickaxe', 1, 1, 5], ['iron_sword', 1, 1, 5], ['iron_chestplate', 1, 1, 5], ['iron_helmet', 1, 1, 5], ['golden_apple', 1, 1, 1], ['saddle', 1, 1, 1], ['enchanted_book', 1, 1, 3, 'book30']],
+  stronghold_corridor: [[2, 4], ['ender_pearl', 1, 2, 12], ['diamond', 1, 3, 3], ['iron_ingot', 1, 5, 10], ['gold_ingot', 1, 3, 5], ['redstone', 4, 9, 5], ['bread', 1, 3, 15], ['apple', 1, 3, 15], ['iron_pickaxe', 1, 1, 5], ['iron_sword', 1, 1, 5], ['iron_chestplate', 1, 1, 5], ['iron_helmet', 1, 1, 5], ['golden_apple', 1, 1, 1], ['leather', 1, 5, 1], ['enchanted_book', 1, 1, 3, 'book30']],
   village_house: [[3, 6], ['bread', 1, 4, 15], ['apple', 1, 5, 10], ['wheat', 1, 7, 10], ['emerald', 1, 3, 5], ['wheat_seeds', 2, 5, 10], ['carrot', 1, 5, 10], ['potato', 1, 5, 10], ['torch', 1, 4, 5], ['bed', 1, 1, 2], ['book', 1, 1, 3]],
   village_smith: [[3, 8], ['iron_ingot', 1, 5, 10], ['gold_ingot', 1, 3, 5], ['bread', 1, 3, 15], ['apple', 1, 3, 15], ['iron_pickaxe', 1, 1, 5], ['iron_sword', 1, 1, 5], ['iron_chestplate', 1, 1, 5], ['iron_helmet', 1, 1, 5], ['iron_leggings', 1, 1, 5], ['iron_boots', 1, 1, 5], ['obsidian', 3, 7, 5], ['diamond', 1, 3, 3], ['saddle', 1, 1, 3], ['coal', 1, 5, 10]],
   village_weapons: [[3, 6], ['iron_ingot', 1, 5, 10], ['iron_sword', 1, 1, 8], ['iron_axe', 1, 1, 6], ['bow', 1, 1, 6], ['arrow', 4, 16, 12], ['bread', 1, 3, 10], ['emerald', 1, 2, 4]],
@@ -3050,8 +3073,9 @@ function tileTick() {
 function furnaceTick(k, t) {
   const [x, y, z] = k.split(',').map(Number);
   if (!isLoaded(x >> 4, z >> 4)) return;
-  const speed = getB(x, y, z) === BK.blast_furnace ? 2 : 1;
-  const r = t.in ? smeltOf(t.in.id) : null;
+  const blast = getB(x, y, z) === BK.blast_furnace;
+  const speed = blast ? 2 : 1;
+  const r = t.in ? (blast ? blastSmeltOf(t.in.id) : smeltOf(t.in.id)) : null;
   const outOk = r && (!t.out || (t.out.id === IK[r[0]] && t.out.n + r[2] <= stackMax(t.out)));
   if (t.burn > 0) t.burn -= 0.05;
   if ((t.burn || 0) <= 0 && outOk && t.fuel && fuelOf(t.fuel.id)) {
@@ -5649,7 +5673,7 @@ function simpleIcon(k) {
     case 'copper_ingot': ingot('#e0905a', '#a0603a'); break; case 'iron_ingot': ingot('#e8e8e8', '#a8a8a8'); break; case 'gold_ingot': ingot('#f8d840', '#c0a020'); break;
     case 'ancient_ingot': ingot('#4a3e42', '#2a1e22'); break; case 'brick': ingot('#b0503a', '#7a3020'); break; case 'nether_brick_item': ingot('#4a1a1e', '#2a0a0e'); break;
     case 'ancient_scrap': p.ell(8, 9, 5, 4, '#5a4a44').line(4, 8, 12, 8, '#7a6a64').line(5, 11, 11, 11, '#3a2a24'); break;
-    case 'iron_nugget': nug('#d8d8d8', '#909090'); break; case 'gold_nugget': nug('#f8d840', '#c0a020'); break;
+    case 'copper_nugget': nug('#e0905a', '#a0603a'); break; case 'iron_nugget': nug('#d8d8d8', '#909090'); break; case 'gold_nugget': nug('#f8d840', '#c0a020'); break;
     case 'diamond': gem('#70f0e8', '#30b0a8'); break; case 'emerald': gem('#40e070', '#108030'); break; case 'lapis': gem('#3050c0', '#1a2a80'); break;
     case 'quartz': gem('#f0ece4', '#c0b8b0'); break; case 'prismarine_crystals': gem('#b0f0e0', '#60a898'); break;
     case 'redstone': dust('#e02010'); break; case 'glowstone_dust': dust('#f0d060'); break; case 'gunpowder': dust('#6a6a6a'); break; case 'sugar': dust('#f8f8f8'); break; case 'blaze_powder': dust('#f8a020'); break; case 'bone_meal': dust('#f0f0e8'); break;
@@ -7211,7 +7235,8 @@ function openFurnace(x, y, z) {
     title(p, getB(x, y, z) === BK.blast_furnace ? '高爐' : '熔爐');
     const w = el('div', 'furn');
     const col = el('div', 'fcol');
-    col.appendChild(slotEl({ get: () => t.in, set: v => t.in = v, grp: 'in' }));
+    const isBlast = getB(x, y, z) === BK.blast_furnace;
+    col.appendChild(slotEl({ get: () => t.in, set: v => t.in = v, grp: 'in', accept: st => !!(isBlast ? blastSmeltOf(st.id) : smeltOf(st.id)) }));
     const fl = el('div', 'flame'); fl.style.setProperty('--f', t.burn > 0 ? (t.burn / (t.burnMax || 1)) : 0); col.appendChild(fl);
     col.appendChild(slotEl({ get: () => t.fuel, set: v => t.fuel = v, grp: 'fuel', accept: st => fuelOf(st.id) > 0 || IT[st.id].key === 'bucket' }));
     w.appendChild(col);
@@ -7219,7 +7244,7 @@ function openFurnace(x, y, z) {
     w.appendChild(slotEl({ get: () => t.out, set: () => { }, out: true, big: true, take: (shift) => { if (!t.out) return; if (shift) { const c = Object.assign({}, t.out); giveItem(c); t.out = c.n > 0 ? c : null; } else { const cur = PL.cursor; if (cur && !sameItem(cur, t.out)) return; if (cur) { const k = Math.min(stackMax(cur) - cur.n, t.out.n); cur.n += k; t.out.n -= k; if (t.out.n <= 0) t.out = null; } else { PL.cursor = t.out; t.out = null; } } if (t.xp >= 1) { spawnXP(PL.x, PL.y + 1, PL.z, Math.floor(t.xp)); t.xp -= Math.floor(t.xp); } onPickup(IT[(PL.cursor || { id: 0 }).id] ? IT[(PL.cursor || { id: 0 }).id].key : ''); } }));
     p.appendChild(w); invSection(p);
   });
-  UI.qm = (ref, st, by) => { if (ref.grp === 'inv' || ref.grp === 'hot') { if (smeltOf(st.id)) return by('in'); if (fuelOf(st.id)) return by('fuel'); } return null; };
+  UI.qm = (ref, st, by) => { if (ref.grp === 'inv' || ref.grp === 'hot') { const isBlast = getB(x, y, z) === BK.blast_furnace; if (isBlast ? blastSmeltOf(st.id) : smeltOf(st.id)) return by('in'); if (fuelOf(st.id)) return by('fuel'); } return null; };
   UI.live = () => { if (UI.open === 'furnace') { const f = UIPANEL.querySelector('.flame'), a = UIPANEL.querySelector('.parrow'); if (f) f.style.setProperty('--f', t.burn > 0 ? (t.burn / (t.burnMax || 1)) : 0); if (a) a.style.setProperty('--p', (t.cook || 0) / 10); if (UI.ctx.lastOut !== JSON.stringify([t.in, t.fuel, t.out])) { UI.ctx.lastOut = JSON.stringify([t.in, t.fuel, t.out]); UI.ctx.keep = 1; rebuild(); } } };
 }
 function openBrew(x, y, z) {
@@ -7540,9 +7565,9 @@ const ADV = [
   ['food', '果腹', '吃下任何食物', 'cooked_beef', 'wood', '擊殺動物取得肉，放進熔爐烤熟再吃'],
   ['torch', '點亮黑夜', '放置火把', 'torch', 'wood', '煤炭或木炭＋木棍 → 火把。怪物只會在黑暗中生成'],
   ['sleep', '甜蜜的夢', '在床上睡到天亮', 'bed', 'wood', '用 3 羊毛＋3 木板做床，夜晚右鍵睡覺並設定重生點'],
-  ['copper', '銅器時代', '熔煉出銅錠', 'copper_ingot', 'stone_pickaxe', '用石鎬挖銅礦，熔煉成銅錠——開採鐵礦需要銅鎬'],
-  ['copper_pickaxe', '銅鎬', '製作銅鎬', 'copper_pickaxe', 'copper', '3 銅錠＋2 木棍製作銅鎬，才能挖掘鐵礦'],
-  ['iron', '取得鐵', '熔煉出鐵錠', 'iron_ingot', 'copper_pickaxe', '深入洞穴尋找鐵礦，用銅鎬開採後熔煉'],
+  ['copper', '銅器時代', '熔煉出銅錠', 'copper_ingot', 'stone_pickaxe', '用石鎬挖銅礦，熔煉成銅錠；銅工具更快更耐用，但採掘等級與石工具相同'],
+  ['copper_pickaxe', '銅鎬', '製作銅鎬', 'copper_pickaxe', 'copper', '3 銅錠＋2 木棍製作銅鎬；採掘等級與石鎬相同，但速度更快、耐久更高'],
+  ['iron', '取得鐵', '熔煉出鐵錠', 'iron_ingot', 'stone_pickaxe', '深入洞穴尋找鐵礦，用石鎬或銅鎬開採後熔煉'],
   ['iron_pickaxe', '鐵器時代', '製作鐵鎬', 'iron_pickaxe', 'iron', '鐵鎬可以開採金、赤能、青晶礦'],
   ['armor', '全副武裝', '穿上一整套盔甲', 'iron_chestplate', 'iron', '製作頭盔、胸甲、護腿、靴子並裝備'],
   ['diamond', '青晶！', '取得青晶', 'diamond', 'iron_pickaxe', '在 Y=16 以下的深層尋找青晶礦'],
@@ -7581,7 +7606,7 @@ const ADV = [
   ['hot_touch', '熔岩浴', '碰到熔岩並活下來', 'lava_bucket', 'wood', null]
 ];
 const ADVMAP = {}; for (const a of ADV) ADVMAP[a[0]] = a;
-const MAINLINE = ['wood', 'planks', 'crafting_table', 'wooden_pickaxe', 'stone', 'stone_pickaxe', 'furnace', 'food', 'torch', 'copper', 'copper_pickaxe', 'iron', 'iron_pickaxe', 'diamond', 'enchant', 'obsidian', 'portal_lit', 'nether', 'fortress', 'blaze_rod', 'ender_pearl', 'eye', 'eye_throw', 'stronghold', 'end_portal', 'end', 'crystal', 'dragon', 'outer_end', 'elytra', 'elytra_fly'];
+const MAINLINE = ['wood', 'planks', 'crafting_table', 'wooden_pickaxe', 'stone', 'stone_pickaxe', 'furnace', 'food', 'torch', 'iron', 'iron_pickaxe', 'diamond', 'enchant', 'obsidian', 'portal_lit', 'nether', 'fortress', 'blaze_rod', 'ender_pearl', 'eye', 'eye_throw', 'stronghold', 'end_portal', 'end', 'crystal', 'dragon', 'outer_end', 'elytra', 'elytra_fly'];
 function grantAdv(id) {
   if (!PL || PL.adv[id] || !ADVMAP[id]) return;
   PL.adv[id] = Date.now();
